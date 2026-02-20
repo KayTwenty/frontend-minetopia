@@ -3,22 +3,32 @@ import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import api from '@/lib/api'
 import { Plan } from '@/lib/types'
-import { Check, Loader2, X } from 'lucide-react'
+import { Check, Loader2, X, Search } from 'lucide-react'
 
-const MC_VERSIONS = ['1.21.4', '1.21.1', '1.20.4', '1.20.1', '1.19.4']
+interface McVersion {
+  id:          string
+  type:        'release' | 'snapshot'
+  releaseTime: string
+  java:        number
+}
 
 export default function NewServerPage() {
   const router = useRouter()
   const [plans, setPlans]     = useState<Plan[]>([])
   const [plansLoading, setPlansLoading] = useState(true)
   const [plansError, setPlansError]     = useState('')
+  const [versions, setVersions]         = useState<McVersion[]>([])
+  const [versionsLoading, setVersionsLoading] = useState(true)
+  const [showSnapshots, setShowSnapshots]     = useState(false)
+  const [versionSearch, setVersionSearch]     = useState('')
   const [name, setName]       = useState('')
   const [planId, setPlanId]   = useState('')
-  const [version, setVersion] = useState('1.21.4')
+  const [version, setVersion] = useState('')
   const [port, setPort]       = useState(25565)
   const [portStatus, setPortStatus] = useState<'idle' | 'checking' | 'available' | 'taken'>('idle')
   const [error, setError]     = useState('')
   const [loading, setLoading] = useState(false)
+  const [deployed, setDeployed] = useState<string>('')
 
   useEffect(() => {
     api.get('/api/plans')
@@ -34,6 +44,19 @@ export default function NewServerPage() {
         setPlansError(err.response?.data?.error ?? 'Could not load plans — is the API running?')
       })
       .finally(() => setPlansLoading(false))
+  }, [])
+
+  useEffect(() => {
+    api.get('/api/mc-versions?snapshots=true')
+      .then(({ data }) => {
+        setVersions(data)
+        // default to the first release (snapshots are listed after releases)
+        const firstRelease = data.find((v: McVersion) => v.type === 'release')
+        if (firstRelease) setVersion(firstRelease.id)
+        else if (data.length > 0) setVersion(data[0].id)
+      })
+      .catch(() => { /* non-fatal: user can still type a version ID */ })
+      .finally(() => setVersionsLoading(false))
   }, [])
 
   // Debounced port availability check
@@ -63,7 +86,8 @@ export default function NewServerPage() {
         server_type: 'vanilla',
         port,
       })
-      router.push('/dashboard/servers')
+      setDeployed(name)
+      setTimeout(() => router.push('/dashboard/servers'), 1800)
     } catch (err: any) {
       setError(err.response?.data?.error ?? 'Something went wrong')
       setLoading(false)
@@ -78,6 +102,22 @@ export default function NewServerPage() {
     available: <Check size={14} className="text-green-400" />,
     taken:     <X size={14} className="text-red-400" />,
   }[portStatus]
+
+  if (deployed) return (
+    <div className="flex flex-col items-center justify-center h-64 gap-5 text-center">
+      <div className="w-14 h-14 rounded-2xl bg-emerald-500/15 border border-emerald-500/25 flex items-center justify-center">
+        <Check size={24} className="text-emerald-400" />
+      </div>
+      <div>
+        <p className="text-lg font-bold tracking-tight text-white">{deployed} is deploying</p>
+        <p className="text-sm text-white/35 mt-1">Installation will complete in under a minute.</p>
+      </div>
+      <div className="flex items-center gap-2 text-white/25 text-xs">
+        <Loader2 size={12} className="animate-spin" />
+        Redirecting to your servers…
+      </div>
+    </div>
+  )
 
   return (
     <div className="max-w-4xl mx-auto w-full py-4 flex flex-col gap-10">
@@ -119,22 +159,81 @@ export default function NewServerPage() {
               <span className="w-5 h-5 rounded-full border border-white/20 flex items-center justify-center text-[10px] text-white/40 shrink-0">2</span>
               <label className="text-sm font-medium text-white/70">Minecraft Version</label>
             </div>
-            <div className="flex flex-wrap gap-2">
-              {MC_VERSIONS.map(v => (
-                <button
-                  key={v}
-                  type="button"
-                  onClick={() => setVersion(v)}
-                  className={`px-4 py-2 rounded-lg text-sm font-mono transition-all border ${
-                    version === v
-                      ? 'border-white/60 text-white bg-white/8'
-                      : 'border-white/10 text-white/35 hover:border-white/30 hover:text-white/70'
-                  }`}
-                >
-                  {v}
-                </button>
-              ))}
+
+            {/* Controls row */}
+            <div className="flex items-center gap-2">
+              <div className="relative flex-1">
+                <Search size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-white/25 pointer-events-none" />
+                <input
+                  type="text"
+                  placeholder="Search versions…"
+                  value={versionSearch}
+                  onChange={e => setVersionSearch(e.target.value)}
+                  className="w-full bg-transparent border border-white/10 hover:border-white/20 focus:border-white/35 rounded-lg pl-8 pr-3 py-2 text-xs text-white placeholder-white/20 outline-none transition-colors font-mono"
+                />
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowSnapshots(s => !s)}
+                className={`px-3 py-2 rounded-lg text-xs border transition-all shrink-0 ${
+                  showSnapshots
+                    ? 'border-amber-500/40 bg-amber-500/10 text-amber-400'
+                    : 'border-white/10 text-white/30 hover:border-white/25 hover:text-white/50'
+                }`}
+              >
+                Snapshots
+              </button>
             </div>
+
+            {/* Version grid */}
+            {versionsLoading ? (
+              <div className="grid grid-cols-3 gap-2">
+                {[...Array(6)].map((_, i) => (
+                  <div key={i} className="animate-pulse border border-white/8 rounded-lg h-10" />
+                ))}
+              </div>
+            ) : (
+              <div className="max-h-52 overflow-y-auto pr-0.5">
+                <div className="grid grid-cols-3 gap-2">
+                  {versions
+                    .filter(v => (showSnapshots ? true : v.type === 'release') &&
+                      (!versionSearch || v.id.toLowerCase().includes(versionSearch.toLowerCase())))
+                    .map(v => (
+                      <button
+                        key={v.id}
+                        type="button"
+                        onClick={() => setVersion(v.id)}
+                        className={`flex flex-col items-start gap-0.5 px-3 py-2 rounded-lg text-left border transition-all ${
+                          version === v.id
+                            ? 'border-white/50 bg-white/8 text-white'
+                            : 'border-white/8 text-white/40 hover:border-white/25 hover:text-white/70'
+                        }`}
+                      >
+                        <span className="text-xs font-mono leading-none">{v.id}</span>
+                        <span className={`text-[10px] leading-none ${
+                          v.java >= 21 ? 'text-emerald-500/60' : 'text-white/20'
+                        }`}>
+                          Java {v.java}
+                        </span>
+                      </button>
+                    ))}
+                </div>
+                {versions.filter(v =>
+                  (showSnapshots ? true : v.type === 'release') &&
+                  (!versionSearch || v.id.toLowerCase().includes(versionSearch.toLowerCase()))
+                ).length === 0 && (
+                  <p className="text-xs text-white/25 text-center py-6">No versions match &ldquo;{versionSearch}&rdquo;</p>
+                )}
+              </div>
+            )}
+
+            {/* Selected version summary */}
+            {version && (
+              <p className="text-xs text-white/30">
+                Selected: <span className="font-mono text-white/60">{version}</span>
+                {(() => { const v = versions.find(x => x.id === version); return v ? ` · Java ${v.java} required` : '' })()}
+              </p>
+            )}
           </div>
 
           {/* Step 3 — Plan */}
@@ -220,7 +319,7 @@ export default function NewServerPage() {
 
           <button
             type="submit"
-            disabled={loading || !planId || !name || portStatus === 'taken'}
+            disabled={loading || !planId || !name || !version || portStatus === 'taken'}
             className="bg-white hover:bg-white/90 disabled:opacity-30 text-black font-semibold py-3.5 rounded-xl text-sm transition-all"
           >
             {loading ? 'Deploying...' : 'Deploy Server →'}

@@ -2,7 +2,7 @@
 import { useEffect, useRef, useState, KeyboardEvent } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { ServerStatus } from '@/lib/types'
-import { Terminal, CornerDownLeft } from 'lucide-react'
+import { Terminal, CornerDownLeft, Copy, Check, Maximize2, Minimize2, ArrowDown } from 'lucide-react'
 
 interface Props {
   serverId:  string
@@ -13,7 +13,7 @@ interface Props {
 //  Install phase steps 
 const INSTALL_STEPS = [
   { label: 'Creating LXC container',      hint: 'Allocating isolated environment...' },
-  { label: 'Installing Java 21',           hint: 'apt-get install openjdk-21-jre-headless' },
+  { label: 'Installing Java runtime',       hint: 'apt-get install openjdk-17-jre-headless openjdk-21-jre-headless' },
   { label: 'Downloading server jar',       hint: 'Fetching from Mojang...' },
   { label: 'Registering systemd service',  hint: 'Writing /etc/systemd/system/mc-*' },
   { label: 'Starting Minecraft',           hint: 'Launching server process...' },
@@ -42,6 +42,11 @@ function classifyLine(line: string, steps: Step[]): Step[] {
   if (/Loading libraries|Starting Minecraft server|Starting net\.minecraft/.test(line)) return set(2)
   if (/Done \(\d/.test(line))                                                      return s.map(t => ({ ...t, done: true }))
   return s
+}
+
+//  Timestamp helper for event markers 
+function nowTime(): string {
+  return new Date().toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', second: '2-digit' })
 }
 
 //  Log line color 
@@ -74,17 +79,21 @@ export default function ConsolePanel({ serverId, status, createdAt }: Props) {
   const [historyIdx, setHistoryIdx]   = useState(-1)
   const wsRef                         = useRef<WebSocket | null>(null)
   const bottomRef                     = useRef<HTMLDivElement>(null)
+  const logRef                        = useRef<HTMLDivElement>(null)
   const inputRef                      = useRef<HTMLInputElement>(null)
   const statusRef                     = useRef(status)
   const reconnectTimer                = useRef<ReturnType<typeof setTimeout> | null>(null)
   const reconnectDelay                = useRef(2_000)
   const reconnectAttempt              = useRef(0)
   const unmounted                     = useRef(false)
+  const [atBottom, setAtBottom]       = useState(true)
+  const [expanded, setExpanded]       = useState(false)
+  const [logCopied, setLogCopied]     = useState(false)
 
-  // Auto-scroll on new lines
+  // Auto-scroll on new lines — only when pinned to the bottom
   useEffect(() => {
-    bottomRef.current?.scrollIntoView({ behavior: 'auto' })
-  }, [lines])
+    if (atBottom) bottomRef.current?.scrollIntoView({ behavior: 'auto' })
+  }, [lines, atBottom])
 
   const stepIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
   const stepTimeoutRef  = useRef<ReturnType<typeof setTimeout> | null>(null)
@@ -92,13 +101,14 @@ export default function ConsolePanel({ serverId, status, createdAt }: Props) {
   // Install progress timer — advances from wherever we seeded (handles refresh)
   useEffect(() => {
     if (status !== 'installing') { setInstallStep(0); setElapsed(0); return }
-    // Re-seed elapsed + step from real server age in case this is a page refresh
-    const { step, secs } = seedInstall()
+    // Inline seed so createdAt is a proper dep (avoids stale closure)
+    const age  = createdAt ? Math.floor((Date.now() - new Date(createdAt).getTime()) / 1_000) : 0
+    const step = Math.min(Math.floor(age / 18), INSTALL_STEPS.length - 1)
     setInstallStep(step)
-    setElapsed(secs)
+    setElapsed(age)
     const secTimer = setInterval(() => setElapsed(s => s + 1), 1_000)
     // Align the first step-advance to the correct sub-interval boundary
-    const msUntilNextStep = (18 - (secs % 18)) * 1_000
+    const msUntilNextStep = (18 - (age % 18)) * 1_000
     stepTimeoutRef.current = setTimeout(() => {
       setInstallStep(i => Math.min(i + 1, INSTALL_STEPS.length - 1))
       stepIntervalRef.current = setInterval(
@@ -111,7 +121,7 @@ export default function ConsolePanel({ serverId, status, createdAt }: Props) {
       if (stepTimeoutRef.current)  clearTimeout(stepTimeoutRef.current)
       if (stepIntervalRef.current) clearInterval(stepIntervalRef.current)
     }
-  }, [status])
+  }, [status, createdAt])
 
   // Keep statusRef current so onclose callbacks always see the latest status
   useEffect(() => { statusRef.current = status }, [status])
@@ -153,7 +163,7 @@ export default function ConsolePanel({ serverId, status, createdAt }: Props) {
         ws.send(JSON.stringify({ token: session.access_token }))
         setConnected(true)
         // On first connect clear lines; on reconnect append a notice instead
-        setLines(prev => reconnectAttempt.current > 0 ? [...prev, '\u2014 reconnected \u2014'] : [])
+        setLines(prev => reconnectAttempt.current > 0 ? [...prev, `\u2014 reconnected at ${nowTime()} \u2014`] : [])
         reconnectDelay.current   = 2_000
         reconnectAttempt.current = 0
       }
@@ -172,12 +182,12 @@ export default function ConsolePanel({ serverId, status, createdAt }: Props) {
           reconnectDelay.current = Math.min(delay * 2, 30_000)
           setLines(prev => [...prev,
             attempt === 1
-              ? `\u2014 disconnected \u2014 reconnecting in ${delay / 1000}s...`
-              : `\u2014 reconnect attempt ${attempt} in ${delay / 1000}s...`,
+              ? `\u2014 disconnected at ${nowTime()} \u2014 reconnecting in ${delay / 1000}s...`
+              : `\u2014 reconnect attempt ${attempt} at ${nowTime()} in ${delay / 1000}s...`,
           ])
           reconnectTimer.current = setTimeout(connect, delay)
         } else {
-          setLines(prev => [...prev, '\u2014 disconnected \u2014'])
+          setLines(prev => [...prev, `\u2014 disconnected at ${nowTime()} \u2014`])
         }
       }
 
@@ -234,6 +244,22 @@ export default function ConsolePanel({ serverId, status, createdAt }: Props) {
     }
   }
 
+  const copyLogs     = () => {
+    navigator.clipboard.writeText(lines.join('\n')).then(() => {
+      setLogCopied(true)
+      setTimeout(() => setLogCopied(false), 2_000)
+    })
+  }
+  const jumpToBottom = () => {
+    setAtBottom(true)
+    requestAnimationFrame(() => bottomRef.current?.scrollIntoView({ behavior: 'smooth' }))
+  }
+  const handleScroll = () => {
+    const el = logRef.current
+    if (!el) return
+    setAtBottom(el.scrollHeight - el.scrollTop - el.clientHeight < 50)
+  }
+
   const doneCount    = steps.filter(s => s.done).length
   const progressPct  = Math.round((doneCount / steps.length) * 100)
   const activeIdx    = steps.findIndex(s => !s.done)
@@ -251,17 +277,31 @@ export default function ConsolePanel({ serverId, status, createdAt }: Props) {
           <Terminal size={14} />
           Console
         </div>
-        <span className={`text-xs font-mono ${
-          connected    ? 'text-white' :
-          isInstalling ? 'text-white/50' :
-          isStarting   ? 'text-white/60'  :
-                         'text-white/20'
-        }`}>
-          {connected    ? '● live'
-          : isInstalling ? '● installing'
-          : isStarting   ? '● starting'
-          :                '○ offline'}
-        </span>
+        <div className="flex items-center gap-3">
+          {lines.length > 0 && (
+            <button onClick={copyLogs} title="Copy log" className="text-white/20 hover:text-white/60 transition-colors">
+              {logCopied ? <Check size={13} className="text-emerald-400" /> : <Copy size={13} />}
+            </button>
+          )}
+          <button
+            onClick={() => setExpanded(e => !e)}
+            title={expanded ? 'Collapse' : 'Expand'}
+            className="text-white/20 hover:text-white/60 transition-colors"
+          >
+            {expanded ? <Minimize2 size={13} /> : <Maximize2 size={13} />}
+          </button>
+          <span className={`text-xs font-mono ${
+            connected    ? 'text-white' :
+            isInstalling ? 'text-white/50' :
+            isStarting   ? 'text-white/60'  :
+                           'text-white/20'
+          }`}>
+            {connected    ? '● live'
+            : isInstalling ? '● installing'
+            : isStarting   ? '● starting'
+            :                '○ offline'}
+          </span>
+        </div>
       </div>
 
       {/*  Installing phase  */}
@@ -323,15 +363,34 @@ export default function ConsolePanel({ serverId, status, createdAt }: Props) {
           )}
 
           {/* Log output */}
-          <div
-            className="h-120 overflow-y-auto bg-black p-4 font-mono text-[11px] leading-[1.6] cursor-text"
-            onClick={() => canInput && inputRef.current?.focus()}
-          >
-            {lines.length === 0
-              ? <span className="text-zinc-700">Waiting for output...</span>
-              : lines.map((line, i) => <div key={i} className={lineClass(line)}>{line}</div>)
-            }
-            <div ref={bottomRef} />
+          <div className="relative">
+            <div
+              ref={logRef}
+              onScroll={handleScroll}
+              className={`${expanded ? 'h-128' : 'h-72'} overflow-y-auto bg-black p-4 font-mono text-[11px] leading-[1.6] cursor-text transition-[height] duration-200`}
+              onClick={() => canInput && inputRef.current?.focus()}
+            >
+              {lines.length === 0 ? (
+                <span className="text-zinc-700">Waiting for output...</span>
+              ) : (
+                <>
+                  {lines.length >= 500 && (
+                    <div className="text-zinc-600 text-center mb-3 select-none">— older output trimmed —</div>
+                  )}
+                  {lines.map((line, i) => <div key={i} className={lineClass(line)}>{line}</div>)}
+                </>
+              )}
+              <div ref={bottomRef} />
+            </div>
+            {!atBottom && lines.length > 0 && (
+              <button
+                onClick={jumpToBottom}
+                className="absolute bottom-3 right-3 z-10 flex items-center gap-1.5 bg-zinc-900 hover:bg-zinc-800 border border-white/15 text-white/50 hover:text-white px-2.5 py-1.5 rounded-lg text-[11px] transition-all"
+              >
+                <ArrowDown size={11} />
+                Latest
+              </button>
+            )}
           </div>
 
           {/* Command input */}

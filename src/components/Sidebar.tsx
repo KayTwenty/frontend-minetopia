@@ -30,7 +30,7 @@ export default function Sidebar() {
   }
 
   return (
-    <aside className="w-56 min-h-screen bg-[#111827] border-r border-white/8 flex flex-col py-8 px-5">
+    <aside className="w-56 min-h-screen bg-[#0b0f1a] border-r border-white/8 flex flex-col py-8 px-5">
       {/* Logo */}
       <Link href="/" className="flex items-center gap-2.5 mb-10">
         <MinetopiaLogo />
@@ -45,15 +45,12 @@ export default function Sidebar() {
             <Link
               key={href}
               href={href}
-              className={`group flex items-center gap-3 px-3 py-2 rounded-md text-sm transition-all ${
+              className={`group flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition-all ${
                 active
-                  ? 'text-white font-medium'
-                  : 'text-white/35 hover:text-white/70 font-normal'
+                  ? 'text-white font-medium bg-white/8'
+                  : 'text-white/35 hover:text-white/70 hover:bg-white/4 font-normal'
               }`}
             >
-              <span className={`w-0.5 h-4 rounded-full transition-all ${
-                active ? 'bg-white' : 'bg-transparent group-hover:bg-white/20'
-              }`} />
               <Icon size={15} className="shrink-0" />
               {label}
             </Link>
@@ -64,9 +61,8 @@ export default function Sidebar() {
       {/* Sign out */}
       <button
         onClick={handleLogout}
-        className="mt-auto flex items-center gap-3 px-3 py-2 rounded-md text-sm text-white/20 hover:text-white/50 transition-all"
+        className="mt-auto flex items-center gap-3 px-3 py-2 rounded-lg text-sm text-white/20 hover:text-white/50 hover:bg-white/4 transition-all"
       >
-        <span className="w-0.5 h-4" />
         <LogOut size={15} className="shrink-0" />
         Sign Out
       </button>
