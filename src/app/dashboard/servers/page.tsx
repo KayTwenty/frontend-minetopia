@@ -4,6 +4,8 @@ import { Server, PlusCircle } from 'lucide-react'
 import StatusBadge from '@/components/StatusBadge'
 import { Server as ServerType } from '@/lib/types'
 
+export const metadata = { title: 'Servers — Minetopia' }
+
 export default async function ServersPage() {
   const supabase = await createClient()
 
@@ -38,7 +40,7 @@ export default async function ServersPage() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold tracking-tight">Servers</h1>
-          <p className="text-white/40 text-sm mt-1">{servers?.length ?? 0} server{servers?.length !== 1 ? 's' : ''}</p>
+          <p className="text-white/40 text-sm mt-1">{servers.length} server{servers.length !== 1 ? 's' : ''}</p>
         </div>
         <Link
           href="/dashboard/servers/new"
@@ -50,7 +52,7 @@ export default async function ServersPage() {
       </div>
 
       {/* List */}
-      {!servers?.length ? (
+      {!servers.length ? (
         <div className="border border-dashed border-white/10 rounded-2xl p-20 flex flex-col items-center gap-5 text-center">
           <div className="w-16 h-16 rounded-2xl border border-white/10 bg-white/3 flex items-center justify-center">
             <Server size={24} className="text-white/20" />

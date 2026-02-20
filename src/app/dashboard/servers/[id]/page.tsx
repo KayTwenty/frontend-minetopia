@@ -4,7 +4,7 @@ import { useParams, useRouter } from 'next/navigation'
 import api from '@/lib/api'
 import { Server, ServerMetrics } from '@/lib/types'
 import StatusBadge from '@/components/StatusBadge'
-import { Play, Square, RotateCcw, Copy, Check, Trash2, Users, Cpu, MemoryStick, Wifi, SlidersHorizontal, LayoutDashboard, AlertCircle } from 'lucide-react'
+import { Play, Square, RotateCcw, Copy, Check, Trash2, Users, Cpu, MemoryStick, Wifi, SlidersHorizontal, LayoutDashboard, AlertCircle, X } from 'lucide-react'
 import ConsolePanel from './ConsolePanel'
 import ConfirmModal from '@/components/ConfirmModal'
 import PropertiesPanel from './PropertiesPanel'
@@ -24,6 +24,7 @@ export default function ServerPage() {
     action: () => Promise<void>
   } | null>(null)
   const [modalLoading, setModalLoading]   = useState(false)
+  const [actionError, setActionError]     = useState('')
   const router = useRouter()
   const deleted = useRef(false)
 
@@ -56,11 +57,20 @@ export default function ServerPage() {
   }, [id])
 
   useEffect(() => {
+    document.title = server?.name ? `${server.name} \u2014 Minetopia` : 'Server \u2014 Minetopia'
+  }, [server?.name])
+
+  useEffect(() => {
     fetchServer()
     const interval = setInterval(() => {
-      fetchServer()
+      if (!document.hidden) fetchServer()
     }, 5000)
-    return () => clearInterval(interval)
+    const handleVisibility = () => { if (!document.hidden) fetchServer() }
+    document.addEventListener('visibilitychange', handleVisibility)
+    return () => {
+      clearInterval(interval)
+      document.removeEventListener('visibilitychange', handleVisibility)
+    }
   }, [id])
 
   // Only poll metrics when the server is actually running
@@ -70,15 +80,25 @@ export default function ServerPage() {
       return
     }
     fetchMetrics()
-    const interval = setInterval(fetchMetrics, 5000)
-    return () => clearInterval(interval)
+    const interval = setInterval(() => {
+      if (!document.hidden) fetchMetrics()
+    }, 5000)
+    const handleVisibility = () => { if (!document.hidden) fetchMetrics() }
+    document.addEventListener('visibilitychange', handleVisibility)
+    return () => {
+      clearInterval(interval)
+      document.removeEventListener('visibilitychange', handleVisibility)
+    }
   }, [server?.status])
 
   const powerAction = async (action: 'start' | 'stop' | 'restart') => {
     setActionLoading(true)
+    setActionError('')
     try {
       await api.post(`/api/servers/${id}/${action}`)
       await fetchServer()
+    } catch (err: any) {
+      setActionError(err?.response?.data?.error ?? `Failed to ${action} the server. Please try again.`)
     } finally {
       setActionLoading(false)
     }
@@ -310,6 +330,22 @@ export default function ServerPage() {
             : <><Copy size={12} /> Copy</>}
         </button>
       </div>
+
+      {/*  Action error  */}
+      {actionError && (
+        <div className="bg-red-500/10 border border-red-500/25 rounded-2xl p-4 flex items-center justify-between gap-3">
+          <div className="flex items-center gap-3 min-w-0">
+            <AlertCircle size={15} className="text-red-400 shrink-0" />
+            <p className="text-sm text-red-400 truncate">{actionError}</p>
+          </div>
+          <button
+            onClick={() => setActionError('')}
+            className="text-red-400/50 hover:text-red-400 shrink-0 transition-colors"
+          >
+            <X size={14} />
+          </button>
+        </div>
+      )}
 
       {/*  Power controls  */}
       <div className="grid grid-cols-3 gap-3">

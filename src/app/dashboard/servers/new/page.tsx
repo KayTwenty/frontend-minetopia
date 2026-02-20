@@ -59,6 +59,11 @@ export default function NewServerPage() {
       .finally(() => setVersionsLoading(false))
   }, [])
 
+  useEffect(() => {
+    document.title = 'New Server \u2014 Minetopia'
+    return () => { document.title = 'Servers \u2014 Minetopia' }
+  }, [])
+
   // Debounced port availability check
   useEffect(() => {
     if (port < 1024 || port > 65535) { setPortStatus('idle'); return }

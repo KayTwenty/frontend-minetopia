@@ -4,6 +4,8 @@ import { PlusCircle, Activity, Server } from 'lucide-react'
 import StatusBadge from '@/components/StatusBadge'
 import { Server as ServerType } from '@/lib/types'
 
+export const metadata = { title: 'Dashboard — Minetopia' }
+
 export default async function DashboardPage() {
   const supabase = await createClient()
 
@@ -34,6 +36,7 @@ export default async function DashboardPage() {
   }
 
   const runningCount  = servers.filter((s: any) => s.status === 'running').length
+  const stoppedCount   = servers.filter((s: any) => s.status === 'stopped').length
   const totalCount    = servers.length
   const username      = user?.email?.split('@')[0] ?? 'there'
 
@@ -76,11 +79,11 @@ export default async function DashboardPage() {
         </div>
         <div className="flex flex-col gap-4 border border-white/10 rounded-2xl p-6">
           <div className="flex items-center justify-between">
-            <span className="text-xs text-white/30 uppercase tracking-wider">Offline</span>
+            <span className="text-xs text-white/30 uppercase tracking-wider">Stopped</span>
             <span className="w-2 h-2 rounded-full bg-white/15" />
           </div>
-          <p className="text-5xl font-bold tracking-tight text-white/40">{totalCount - runningCount}</p>
-          <p className="text-xs text-white/20">servers stopped</p>
+          <p className="text-5xl font-bold tracking-tight text-white/40">{stoppedCount}</p>
+          <p className="text-xs text-white/20">server{stoppedCount !== 1 ? 's' : ''} stopped</p>
         </div>
       </div>
 
