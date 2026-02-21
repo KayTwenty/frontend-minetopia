@@ -426,7 +426,7 @@ export default function NewServerPage() {
             <button
               type="submit"
               disabled={loading || !planId || portStatus === 'taken'}
-              className="flex-[2] bg-white hover:bg-white/90 disabled:opacity-30 text-black font-semibold py-3.5 rounded-xl text-sm transition-all"
+              className="flex-2 bg-white hover:bg-white/90 disabled:opacity-30 text-black font-semibold py-3.5 rounded-xl text-sm transition-all"
             >
               {loading ? 'Deploying...' : 'Deploy Server →'}
             </button>
