@@ -3,7 +3,7 @@ import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import api from '@/lib/api'
 import { Plan } from '@/lib/types'
-import { Check, Loader2, X, Search } from 'lucide-react'
+import { Check, Loader2, X, Search, ChevronRight, ChevronLeft } from 'lucide-react'
 
 interface McVersion {
   id:          string
@@ -11,6 +11,15 @@ interface McVersion {
   releaseTime: string
   java:        number
 }
+
+const SERVER_TYPES = [
+  { id: 'paper',   label: 'Paper',   badge: 'Recommended', color: 'text-yellow-400',  ring: 'border-yellow-400/40 bg-yellow-400/8',  desc: 'Fastest performance + plugin support' },
+  { id: 'vanilla', label: 'Vanilla', badge: '',             color: 'text-emerald-400', ring: 'border-emerald-400/40 bg-emerald-400/8', desc: 'Official Mojang server, no extras' },
+  { id: 'purpur',  label: 'Purpur',  badge: '',             color: 'text-purple-400',  ring: 'border-purple-400/40 bg-purple-400/8',  desc: 'Paper fork with extra config options' },
+  { id: 'fabric',  label: 'Fabric',  badge: '',             color: 'text-sky-400',     ring: 'border-sky-400/40 bg-sky-400/8',        desc: 'Modern lightweight mod loader' },
+  { id: 'forge',   label: 'Forge',   badge: '1.17+',        color: 'text-orange-400',  ring: 'border-orange-400/40 bg-orange-400/8',  desc: 'Classic modding framework' },
+  { id: 'spigot',  label: 'Spigot',  badge: 'Slow install', color: 'text-blue-400',    ring: 'border-blue-400/40 bg-blue-400/8',      desc: 'Plugin support, compiled from source' },
+]
 
 export default function NewServerPage() {
   const router = useRouter()
@@ -22,6 +31,7 @@ export default function NewServerPage() {
   const [showSnapshots, setShowSnapshots]     = useState(false)
   const [versionSearch, setVersionSearch]     = useState('')
   const [name, setName]       = useState('')
+  const [serverType, setServerType] = useState('paper')
   const [planId, setPlanId]   = useState('')
   const [version, setVersion] = useState('')
   const [port, setPort]       = useState(25565)
@@ -29,6 +39,7 @@ export default function NewServerPage() {
   const [error, setError]     = useState('')
   const [loading, setLoading] = useState(false)
   const [deployed, setDeployed] = useState<string>('')
+  const [step, setStep]           = useState(1)
 
   useEffect(() => {
     api.get('/api/plans')
@@ -88,7 +99,7 @@ export default function NewServerPage() {
         name,
         plan_id:     planId,
         mc_version:  version,
-        server_type: 'vanilla',
+        server_type: serverType,
         port,
       })
       setDeployed(name)
@@ -134,11 +145,32 @@ export default function NewServerPage() {
         <p className="text-white/40 text-sm mt-2">Your server will be online in under a minute.</p>
       </div>
 
+      {/* Step indicator */}
+      <div className="flex items-center gap-3">
+        <div className={`flex items-center gap-2 text-xs font-medium px-3 py-1.5 rounded-full border transition-all ${
+          step === 1 ? 'border-white/30 bg-white/8 text-white' : 'border-white/10 text-white/30'
+        }`}>
+          <span className="w-4 h-4 rounded-full bg-white/10 flex items-center justify-center text-[10px]">1</span>
+          Configuration
+        </div>
+        <ChevronRight size={12} className="text-white/20" />
+        <div className={`flex items-center gap-2 text-xs font-medium px-3 py-1.5 rounded-full border transition-all ${
+          step === 2 ? 'border-white/30 bg-white/8 text-white' : 'border-white/10 text-white/30'
+        }`}>
+          <span className="w-4 h-4 rounded-full bg-white/10 flex items-center justify-center text-[10px]">2</span>
+          Plan &amp; Deploy
+        </div>
+      </div>
+
       {/* Two-column layout */}
       <div className="grid grid-cols-1 lg:grid-cols-[1fr_280px] gap-8 items-start">
 
         {/* LEFT — Form */}
         <form onSubmit={handleSubmit} className="flex flex-col gap-8">
+
+          {/* ── PAGE 1: Name · Type · Version ── */}
+          {step === 1 && (
+            <>
 
           {/* Step 1 — Name */}
           <div className="flex flex-col gap-3">
@@ -158,10 +190,40 @@ export default function NewServerPage() {
             />
           </div>
 
-          {/* Step 2 — Version */}
+          {/* Step 2 — Server Type */}
           <div className="flex flex-col gap-3">
             <div className="flex items-center gap-3">
               <span className="w-5 h-5 rounded-full border border-white/20 flex items-center justify-center text-[10px] text-white/40 shrink-0">2</span>
+              <label className="text-sm font-medium text-white/70">Server Type</label>
+            </div>
+            <div className="grid grid-cols-2 gap-2">
+              {SERVER_TYPES.map(t => (
+                <button
+                  key={t.id}
+                  type="button"
+                  onClick={() => setServerType(t.id)}
+                  className={`text-left flex flex-col gap-1 px-4 py-3 rounded-xl border transition-all ${
+                    serverType === t.id
+                      ? `${t.ring} border-2`
+                      : 'border-white/10 hover:border-white/25 hover:bg-white/3'
+                  }`}
+                >
+                  <div className="flex items-center gap-2">
+                    <span className={`text-xs font-semibold ${serverType === t.id ? t.color : 'text-white/70'}`}>{t.label}</span>
+                    {t.badge && (
+                      <span className="text-[10px] bg-white/8 text-white/30 border border-white/10 rounded px-1.5 py-0.5 leading-none">{t.badge}</span>
+                    )}
+                  </div>
+                  <span className="text-[11px] text-white/30 leading-snug">{t.desc}</span>
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Step 3 — Version */}
+          <div className="flex flex-col gap-3">
+            <div className="flex items-center gap-3">
+              <span className="w-5 h-5 rounded-full border border-white/20 flex items-center justify-center text-[10px] text-white/40 shrink-0">3</span>
               <label className="text-sm font-medium text-white/70">Minecraft Version</label>
             </div>
 
@@ -241,10 +303,27 @@ export default function NewServerPage() {
             )}
           </div>
 
-          {/* Step 3 — Plan */}
+          {/* Next button */}
+          <button
+            type="button"
+            onClick={() => setStep(2)}
+            disabled={!name.trim() || name.trim().length < 3 || !version}
+            className="bg-white hover:bg-white/90 disabled:opacity-30 text-black font-semibold py-3.5 rounded-xl text-sm transition-all flex items-center justify-center gap-2"
+          >
+            Next <ChevronRight size={15} />
+          </button>
+
+            </>
+          )}
+
+          {/* ── PAGE 2: Plan · Port · Deploy ── */}
+          {step === 2 && (
+            <>
+
+          {/* Step 1 — Plan */}
           <div className="flex flex-col gap-3">
             <div className="flex items-center gap-3">
-              <span className="w-5 h-5 rounded-full border border-white/20 flex items-center justify-center text-[10px] text-white/40 shrink-0">3</span>
+              <span className="w-5 h-5 rounded-full border border-white/20 flex items-center justify-center text-[10px] text-white/40 shrink-0">1</span>
               <label className="text-sm font-medium text-white/70">Plan</label>
             </div>
             <div className="grid grid-cols-2 gap-3">
@@ -276,6 +355,8 @@ export default function NewServerPage() {
                   </p>
                   <div className="mt-3 pt-3 border-t border-white/8 flex flex-col gap-1">
                     <p className="text-white/40 text-xs">{plan.ram_mb / 1024} GB RAM</p>
+                    <p className="text-white/40 text-xs">{plan.cpu_limit} vCPU</p>
+                    <p className="text-white/40 text-xs">{plan.disk_gb} GB disk</p>
                     <p className="text-white/40 text-xs">{plan.max_players} players</p>
                   </div>
                 </button>
@@ -284,10 +365,21 @@ export default function NewServerPage() {
             </div>
           </div>
 
-          {/* Step 4 — Port */}
+          {/* Low-RAM warning for heavy server types */}
+          {planId && ['forge', 'fabric'].includes(serverType) && (plans.find(p => p.id === planId)?.ram_mb ?? 0) < 3072 && (
+            <div className="flex items-start gap-3 border border-amber-500/25 bg-amber-500/8 rounded-xl px-4 py-3">
+              <span className="text-amber-400 text-base leading-none mt-0.5">⚠</span>
+              <p className="text-xs text-amber-300/80 leading-relaxed">
+                <span className="font-semibold text-amber-300">{serverType === 'forge' ? 'Forge' : 'Fabric'} modpacks</span> typically require at least 4 GB RAM.
+                The selected plan may cause crashes or poor performance. Consider <span className="font-semibold">Standard</span> or above.
+              </p>
+            </div>
+          )}
+
+          {/* Step 2 — Port */}
           <div className="flex flex-col gap-3">
             <div className="flex items-center gap-3">
-              <span className="w-5 h-5 rounded-full border border-white/20 flex items-center justify-center text-[10px] text-white/40 shrink-0">4</span>
+              <span className="w-5 h-5 rounded-full border border-white/20 flex items-center justify-center text-[10px] text-white/40 shrink-0">2</span>
               <label className="text-sm font-medium text-white/70">Server Port</label>
               <span className="text-xs text-white/25">optional — we’ll auto-assign if taken</span>
             </div>
@@ -322,13 +414,26 @@ export default function NewServerPage() {
             <p className="text-red-400 text-sm border border-red-500/20 bg-red-500/5 rounded-xl px-4 py-3">{error}</p>
           )}
 
-          <button
-            type="submit"
-            disabled={loading || !planId || !name || !version || portStatus === 'taken'}
-            className="bg-white hover:bg-white/90 disabled:opacity-30 text-black font-semibold py-3.5 rounded-xl text-sm transition-all"
-          >
-            {loading ? 'Deploying...' : 'Deploy Server →'}
-          </button>
+          {/* Back + Deploy */}
+          <div className="flex gap-3">
+            <button
+              type="button"
+              onClick={() => setStep(1)}
+              className="flex-1 border border-white/15 hover:border-white/30 text-white/60 hover:text-white font-semibold py-3.5 rounded-xl text-sm transition-all flex items-center justify-center gap-2"
+            >
+              <ChevronLeft size={15} /> Back
+            </button>
+            <button
+              type="submit"
+              disabled={loading || !planId || portStatus === 'taken'}
+              className="flex-[2] bg-white hover:bg-white/90 disabled:opacity-30 text-black font-semibold py-3.5 rounded-xl text-sm transition-all"
+            >
+              {loading ? 'Deploying...' : 'Deploy Server →'}
+            </button>
+          </div>
+
+            </>
+          )}
 
         </form>
 
@@ -339,6 +444,14 @@ export default function NewServerPage() {
           <div className="border border-white/10 rounded-xl overflow-hidden">
             {/* Line items */}
             <div className="flex flex-col divide-y divide-white/8">
+              <div className="flex items-center justify-between px-4 py-3">
+                <span className="text-xs text-white/40">Type</span>
+                <span className={`text-sm font-medium ${
+                  SERVER_TYPES.find(t => t.id === serverType)?.color ?? 'text-white/70'
+                }`}>
+                  {SERVER_TYPES.find(t => t.id === serverType)?.label ?? serverType}
+                </span>
+              </div>
               <div className="flex items-center justify-between px-4 py-3">
                 <span className="text-xs text-white/40">Server</span>
                 <span className="text-sm text-white font-medium">{name || <span className="text-white/20 italic">—</span>}</span>
@@ -360,6 +473,14 @@ export default function NewServerPage() {
                   <div className="flex items-center justify-between px-4 py-3">
                     <span className="text-xs text-white/40">RAM</span>
                     <span className="text-sm text-white/70">{selectedPlan.ram_mb / 1024} GB</span>
+                  </div>
+                  <div className="flex items-center justify-between px-4 py-3">
+                    <span className="text-xs text-white/40">CPU</span>
+                    <span className="text-sm text-white/70">{selectedPlan.cpu_limit} vCPU</span>
+                  </div>
+                  <div className="flex items-center justify-between px-4 py-3">
+                    <span className="text-xs text-white/40">Disk</span>
+                    <span className="text-sm text-white/70">{selectedPlan.disk_gb} GB</span>
                   </div>
                   <div className="flex items-center justify-between px-4 py-3">
                     <span className="text-xs text-white/40">Players</span>

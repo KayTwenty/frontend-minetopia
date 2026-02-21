@@ -196,6 +196,19 @@ export default function ServerPage() {
   const canRestart = !actionLoading && server.status === 'running'
   const canDelete  = !deleteLoading && !['running','starting','stopping','installing'].includes(server.status)
 
+  const TYPE_COLORS: Record<string, string> = {
+    paper:   'text-yellow-400',
+    vanilla: 'text-emerald-400',
+    purpur:  'text-purple-400',
+    fabric:  'text-sky-400',
+    forge:   'text-orange-400',
+    spigot:  'text-blue-400',
+  }
+  const typeLabel = server.server_type
+    ? server.server_type.charAt(0).toUpperCase() + server.server_type.slice(1)
+    : 'Vanilla'
+  const typeColor = TYPE_COLORS[server.server_type] ?? 'text-white/40'
+
   return (
     <div className="max-w-3xl mx-auto w-full flex flex-col gap-6 pb-10">
 
@@ -213,7 +226,7 @@ export default function ServerPage() {
               <StatusBadge status={server.status} />
             </div>
             <p className="text-white/40 text-sm">
-              Minecraft {server.mc_version} · Vanilla
+              Minecraft {server.mc_version} · <span className={typeColor}>{typeLabel}</span>
               {server.port && <span className="ml-2 text-white/25">:{server.port}</span>}
             </p>
           </div>
