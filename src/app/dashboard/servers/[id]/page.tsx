@@ -4,10 +4,11 @@ import { useParams, useRouter } from 'next/navigation'
 import api from '@/lib/api'
 import { Server, ServerMetrics } from '@/lib/types'
 import StatusBadge from '@/components/StatusBadge'
-import { Play, Square, RotateCcw, Copy, Check, Trash2, Users, Cpu, MemoryStick, Wifi, SlidersHorizontal, LayoutDashboard, AlertCircle, X } from 'lucide-react'
+import { Play, Square, RotateCcw, Copy, Check, Trash2, Users, Cpu, MemoryStick, Wifi, SlidersHorizontal, LayoutDashboard, FolderOpen, AlertCircle, X } from 'lucide-react'
 import ConsolePanel from './ConsolePanel'
 import ConfirmModal from '@/components/ConfirmModal'
 import PropertiesPanel from './PropertiesPanel'
+import FileManagerPanel from './FileManagerPanel'
 
 export default function ServerPage() {
   const { id } = useParams<{ id: string }>()
@@ -17,7 +18,7 @@ export default function ServerPage() {
   const [actionLoading, setActionLoading] = useState(false)
   const [copied, setCopied]           = useState(false)
   const [deleteLoading, setDeleteLoading] = useState(false)
-  const [tab, setTab]                     = useState<'overview' | 'settings'>('overview')
+  const [tab, setTab] = useState<'overview' | 'settings' | 'files'>('overview')
   const [modal, setModal]                 = useState<{
     title: string; description: string
     confirmLabel: string; variant: 'danger' | 'warning'
@@ -264,6 +265,12 @@ export default function ServerPage() {
           <LayoutDashboard size={14} /> Overview
         </button>
         <button
+          onClick={() => setTab('files')}
+          className={`flex items-center gap-2 flex-1 justify-center px-4 py-2 rounded-lg text-sm font-medium transition-all ${tab === 'files' ? 'bg-white/10 text-white' : 'text-white/40 hover:text-white/70'}`}
+        >
+          <FolderOpen size={14} /> Files
+        </button>
+        <button
           onClick={() => setTab('settings')}
           className={`flex items-center gap-2 flex-1 justify-center px-4 py-2 rounded-lg text-sm font-medium transition-all ${tab === 'settings' ? 'bg-white/10 text-white' : 'text-white/40 hover:text-white/70'}`}
         >
@@ -407,6 +414,10 @@ export default function ServerPage() {
 
       {tab === 'settings' && (
         <PropertiesPanel serverId={id} status={server.status} />
+      )}
+
+      {tab === 'files' && (
+        <FileManagerPanel serverId={id} />
       )}
 
       <ConfirmModal
