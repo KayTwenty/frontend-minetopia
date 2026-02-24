@@ -4,7 +4,7 @@ import { useParams, useRouter } from 'next/navigation'
 import api from '@/lib/api'
 import { Server, ServerMetrics } from '@/lib/types'
 import StatusBadge from '@/components/StatusBadge'
-import { Play, Square, RotateCcw, Copy, Check, Trash2, Users, Cpu, MemoryStick, Wifi, SlidersHorizontal, LayoutDashboard, FolderOpen, AlertCircle, X } from 'lucide-react'
+import { Play, Square, RotateCcw, Copy, Check, Trash2, Users, Cpu, MemoryStick, Wifi, SlidersHorizontal, LayoutDashboard, FolderOpen, AlertCircle, X, HardDrive } from 'lucide-react'
 import ConsolePanel from './ConsolePanel'
 import ConfirmModal from '@/components/ConfirmModal'
 import PropertiesPanel from './PropertiesPanel'
@@ -230,6 +230,15 @@ export default function ServerPage() {
               Minecraft {server.mc_version} · <span className={typeColor}>{typeLabel}</span>
               {server.port && <span className="ml-2 text-white/25">:{server.port}</span>}
             </p>
+            {server.plans && (
+              <div className="flex items-center gap-2.5 flex-wrap mt-0.5">
+                <span className="text-xs text-white/30 font-medium">{server.plans.name}</span>
+                <span className="text-white/15 text-xs">·</span>
+                <span className="flex items-center gap-1 text-xs text-white/30"><MemoryStick size={11} className="shrink-0" />{Math.round(server.ram_mb / 1024)} GB</span>
+                <span className="flex items-center gap-1 text-xs text-white/30"><Cpu size={11} className="shrink-0" />{server.cpu_limit} vCPU</span>
+                <span className="flex items-center gap-1 text-xs text-white/30"><HardDrive size={11} className="shrink-0" />{server.disk_gb} GB</span>
+              </div>
+            )}
           </div>
         </div>
         <button
@@ -412,13 +421,13 @@ export default function ServerPage() {
 
       </>)}
 
-      {tab === 'settings' && (
+      <div className={tab === 'settings' ? '' : 'hidden'}>
         <PropertiesPanel serverId={id} status={server.status} />
-      )}
+      </div>
 
-      {tab === 'files' && (
+      <div className={tab === 'files' ? '' : 'hidden'}>
         <FileManagerPanel serverId={id} />
-      )}
+      </div>
 
       <ConfirmModal
         open={!!modal}
