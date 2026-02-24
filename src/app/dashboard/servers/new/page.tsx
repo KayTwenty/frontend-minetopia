@@ -260,7 +260,7 @@ export default function NewServerPage() {
                 ))}
               </div>
             ) : (
-              <div className="max-h-52 overflow-y-auto pr-0.5">
+              <div className="max-h-52 overflow-y-auto pr-0.5 [&::-webkit-scrollbar]:w-1 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-white/20 [&::-webkit-scrollbar-thumb]:rounded-full hover:[&::-webkit-scrollbar-thumb]:bg-white/35">
                 <div className="grid grid-cols-3 gap-2">
                   {versions
                     .filter(v => (showSnapshots ? true : v.type === 'release') &&
